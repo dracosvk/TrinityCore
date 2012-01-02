@@ -14947,6 +14947,7 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
     // (to prevent rewarding this quest another time while rewards were already given out)
     SQLTransaction trans = SQLTransaction(NULL);
     _SaveQuestStatus(trans);
+    SaveQuestRewardsToCharacters();
 
     if (announce)
         SendQuestReward(quest, XP, questGiver);
@@ -18515,6 +18516,22 @@ void Player::SaveInventoryAndGoldToDB(SQLTransaction& trans)
 void Player::SaveGoldToDB(SQLTransaction& trans)
 {
     trans->PAppend("UPDATE characters SET money = '%u' WHERE guid = '%u'", GetMoney(), GetGUIDLow());
+}
+
+void Player::SaveQuestRewardsToCharacters()
+{
+    SQLTransaction trans = SQLTransaction(NULL);
+    std::ostringstream ss;
+    ss.str("");
+    for (uint32 i = 0; i < KNOWN_TITLES_SIZE*2; ++i)
+        ss << GetUInt32Value(PLAYER__FIELD_KNOWN_TITLES + i) << ' ';
+    trans->PAppend("UPDATE characters SET level = '%u', xp = '%u', arenaPoints= '%u', totalHonorPoints = '%u', knownTitles = '%s' WHERE guid = '%u'",getLevel(), GetUInt32Value(PLAYER_XP), GetArenaPoints(), GetHonorPoints(), ss.str(), GetGUIDLow());
+    m_achievementMgr.SaveToDB(trans);
+    m_reputationMgr.SaveToDB(trans);
+    SaveInventoryAndGoldToDB(trans);
+    _SaveTalents(trans);
+
+    CharacterDatabase.CommitTransaction(trans);
 }
 
 void Player::_SaveActions(SQLTransaction& trans)
